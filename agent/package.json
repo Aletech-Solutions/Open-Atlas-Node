@@ -1,0 +1,22 @@
+{
+  "name": "atlasnode-agent",
+  "version": "1.0.0",
+  "description": "AtlasNode Agent - Lightweight system monitor and control agent",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js",
+    "dev": "nodemon agent.js"
+  },
+  "keywords": ["monitoring", "system", "agent"],
+  "author": "AtlasNode",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.2",
+    "systeminformation": "^5.21.20"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+

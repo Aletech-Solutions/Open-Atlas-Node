@@ -1,0 +1,70 @@
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: atlasnode-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-atlasnode}
+      POSTGRES_USER: ${DB_USER:-atlasnode}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-atlasnode_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - atlasnode-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-atlasnode}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: atlasnode-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 5000
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-atlasnode}
+      DB_USER: ${DB_USER:-atlasnode}
+      DB_PASSWORD: ${DB_PASSWORD:-atlasnode_secure_password}
+      JWT_SECRET: ${JWT_SECRET:-change_this_secret_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - atlasnode-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:5000}
+        REACT_APP_WS_URL: ${REACT_APP_WS_URL:-ws://localhost:5000}
+    container_name: atlasnode-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    networks:
+      - atlasnode-network
+
+networks:
+  atlasnode-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+

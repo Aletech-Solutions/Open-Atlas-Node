@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0369a1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Server icon -->
+  <rect x="20" y="25" width="60" height="15" rx="3" fill="url(#grad)"/>
+  <rect x="20" y="42" width="60" height="15" rx="3" fill="url(#grad)"/>
+  <rect x="20" y="59" width="60" height="15" rx="3" fill="url(#grad)"/>
+  
+  <!-- Status lights -->
+  <circle cx="28" cy="32.5" r="2" fill="#10b981"/>
+  <circle cx="35" cy="32.5" r="2" fill="#10b981"/>
+  <circle cx="28" cy="49.5" r="2" fill="#10b981"/>
+  <circle cx="35" cy="49.5" r="2" fill="#eab308"/>
+  <circle cx="28" cy="66.5" r="2" fill="#10b981"/>
+  <circle cx="35" cy="66.5" r="2" fill="#10b981"/>
+  
+  <!-- Network lines -->
+  <path d="M 50 80 L 50 90" stroke="#0ea5e9" stroke-width="2" fill="none"/>
+  <circle cx="50" cy="92" r="3" fill="#0ea5e9"/>
+</svg>
+

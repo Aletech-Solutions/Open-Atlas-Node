@@ -1,0 +1,37 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build Backend
+      run: |
+        cd backend
+        docker build -t atlasnode-backend .
+    
+    - name: Build Frontend
+      run: |
+        cd frontend
+        docker build -t atlasnode-frontend \
+          --build-arg REACT_APP_API_URL=http://localhost:5000 \
+          --build-arg REACT_APP_WS_URL=ws://localhost:5000 \
+          .
+    
+    - name: Build Agent
+      run: |
+        cd agent
+        docker build -t atlasnode-agent .
+    
+    - name: Test Docker Compose
+      run: |
+        docker-compose config
+

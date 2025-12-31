@@ -1,0 +1,8 @@
+{
+  "machineId": 1,
+  "agentToken": "your-secure-token-here",
+  "controlServer": "http://localhost:5000",
+  "port": 7777,
+  "heartbeatInterval": 60000
+}
+
