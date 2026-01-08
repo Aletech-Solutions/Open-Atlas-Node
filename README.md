@@ -42,7 +42,7 @@ AtlasNode is a powerful, open-source homelab management platform that allows you
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/atlasnode.git
+git clone https://github.com/Aletech-Solutions/Open-Atlas-Node.git
 cd atlasnode
 ```
 
@@ -236,8 +236,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- GitHub Issues: [Report bugs or request features](https://github.com/yourusername/atlasnode/issues)
-- Documentation: [Full documentation](https://github.com/yourusername/atlasnode/wiki)
+- GitHub Issues: [Report bugs or request features](https://github.com/Aletech-Solutions/Open-Atlas-Node/issues)
+- Documentation: [Full documentation](https://github.com/Aletech-Solutions/Open-Atlas-Node/wiki)
 
 ## Roadmap
 
@@ -253,4 +253,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Made with ❤️
+
 
