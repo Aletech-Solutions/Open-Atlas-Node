@@ -3,6 +3,11 @@
   "agentToken": "your-secure-token-here",
   "controlServer": "http://localhost:5000",
   "port": 7777,
-  "heartbeatInterval": 60000
+  "heartbeatInterval": 60000,
+  "_comment1": "machineId: Unique identifier for this machine (get from control server dashboard)",
+  "_comment2": "agentToken: Secure token for agent authentication (generate a strong random string)",
+  "_comment3": "controlServer: URL of your AtlasNode control server (without trailing slash)",
+  "_comment4": "port: Port for agent HTTP server (default: 7777)",
+  "_comment5": "heartbeatInterval: Interval in milliseconds to send heartbeat to control server (default: 60000 = 1 minute)"
 }
 

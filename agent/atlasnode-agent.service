@@ -1,0 +1,28 @@
+[Unit]
+Description=AtlasNode Agent - System Monitor and Control
+Documentation=https://github.com/yourusername/server-management
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/atlasnode-agent
+ExecStart=/usr/bin/node /opt/atlasnode-agent/agent.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atlasnode-agent
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Restart policy
+StartLimitInterval=60
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target
+

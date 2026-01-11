@@ -202,6 +202,35 @@ cp config.example.json config.json
 npm start
 ```
 
+### Manual Agent Installation (with Auto-Start)
+
+For manual agent installation with automatic restart on system reboot:
+
+**Linux:**
+```bash
+cd agent
+cp config.example.json config.json
+# Edit config.json with your settings
+chmod +x install.sh
+sudo ./install.sh
+```
+
+**Windows:**
+```cmd
+cd agent
+copy config.example.json config.json
+REM Edit config.json with your settings
+install.bat
+```
+
+See [agent/README-INSTALLATION.md](agent/README-INSTALLATION.md) for detailed installation instructions.
+
+The agent will:
+- ✓ Start automatically on system boot
+- ✓ Restart automatically if it crashes
+- ✓ Wait for network availability before starting
+- ✓ Log to system journal (Linux) or Event Viewer (Windows)
+
 ## Troubleshooting
 
 ### Agent Installation Fails
@@ -214,6 +243,8 @@ npm start
 - Verify agent is running: `systemctl status atlasnode-agent`
 - Check firewall rules
 - Verify agent token in `/opt/atlasnode-agent/config.json`
+- Check agent logs: `journalctl -u atlasnode-agent -f`
+- Ensure agent is enabled to start on boot: `systemctl is-enabled atlasnode-agent`
 
 ### WebSocket Not Connecting
 - Check browser console for errors
