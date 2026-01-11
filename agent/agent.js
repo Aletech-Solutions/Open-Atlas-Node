@@ -146,8 +146,19 @@ app.get('/system/disk', verifyToken, async (req, res) => {
       si.blockDevices()
     ]);
 
+    // Ensure disk data has proper structure with defaults
+    const filesystems = fsSize.map(fs => ({
+      fs: fs.fs || 'unknown',
+      type: fs.type || 'unknown',
+      size: fs.size || 0,
+      used: fs.used || 0,
+      available: fs.available || 0,
+      use: fs.use || 0,
+      mount: fs.mount || 'unknown'
+    }));
+
     res.json({ 
-      filesystems: fsSize, 
+      filesystems, 
       layout: diskLayout,
       devices: blockDevices
     });

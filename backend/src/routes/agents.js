@@ -76,26 +76,44 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Verify the machine exists and token matches
+    const checkResult = await db.query(`
+      SELECT id, name, agent_token, status
+      FROM machines 
+      WHERE id = $1
+    `, [machine_id]);
+
+    if (checkResult.rows.length === 0) {
+      console.error(`Registration failed: Machine ${machine_id} not found`);
+      return res.status(404).json({ error: 'Machine not found' });
+    }
+
+    const machine = checkResult.rows[0];
+
+    // Verify agent token matches
+    if (machine.agent_token !== agent_token) {
+      console.error(`Registration failed: Invalid agent token for machine ${machine_id}`);
+      console.error(`Expected token: ${machine.agent_token?.substring(0, 8)}...`);
+      console.error(`Received token: ${agent_token?.substring(0, 8)}...`);
+      return res.status(403).json({ error: 'Invalid agent token' });
+    }
+
+    console.log(`✓ Token verified for machine: ${machine.name}`);
+
     // Prepare system_info for JSONB storage
     const osInfoJson = system_info ? JSON.stringify(system_info) : null;
 
-    // Verify and update machine
+    // Update machine status and info
     const result = await db.query(`
       UPDATE machines 
       SET 
-        agent_token = $1,
         status = 'online',
-        os_info = $2::jsonb,
+        os_info = $1::jsonb,
         last_seen = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3 AND status = 'installing'
-      RETURNING id, name
-    `, [agent_token, osInfoJson, machine_id]);
-
-    if (result.rows.length === 0) {
-      console.error(`Registration failed: Machine ${machine_id} not found or not in installing state`);
-      return res.status(404).json({ error: 'Machine not found or already registered' });
-    }
+      WHERE id = $2
+      RETURNING id, name, status
+    `, [osInfoJson, machine_id]);
 
     console.log(`✓ Agent registered successfully for machine: ${result.rows[0].name}`);
     if (system_info) {

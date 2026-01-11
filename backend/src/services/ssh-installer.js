@@ -330,6 +330,16 @@ async function installAgent(machineId) {
     const agentPort = machine.agent_port || 7777;
     await logInstallationStep(machineId, 'TOKEN', `Generated agent token and assigned port ${agentPort}`, null, true);
 
+    // IMPORTANT: Save agent token to database BEFORE installation
+    // This prevents race condition where agent starts and tries to register before token is saved
+    await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Saving agent token to database (before installation)', null, true);
+    await db.query(`
+      UPDATE machines 
+      SET agent_token = $1, agent_port = $2, status = 'installing'
+      WHERE id = $3
+    `, [agentToken, agentPort, machineId]);
+    await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Agent token saved to database', null, true);
+
     // Prepare agent files
     const agentPackage = {
       name: 'atlasnode-agent',
@@ -449,14 +459,14 @@ echo '${credentials.sudoPassword.replace(/'/g, "'\\''")}' | sudo -S bash /tmp/at
       throw execError;
     }
 
-    // Update machine with agent token
-    await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Updating machine record with agent token and port', null, true);
+    // Update machine status to online (token already saved earlier)
+    await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Updating machine status to online', null, true);
     await db.query(`
       UPDATE machines 
-      SET agent_token = $1, agent_port = $2, status = 'online'
-      WHERE id = $3
-    `, [agentToken, agentPort, machineId]);
-    await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Machine record updated successfully', null, true);
+      SET status = 'online'
+      WHERE id = $1
+    `, [machineId]);
+    await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Machine status updated to online', null, true);
 
     // Verify agent is responding
     await logInstallationStep(machineId, 'VERIFY_AGENT', 'Verifying agent is responding...', null, true);

@@ -51,7 +51,8 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/machines', authenticateToken, machineRoutes);
-app.use('/api/agents', authenticateToken, agentRoutes);
+// Agent routes use their own authentication (not JWT)
+app.use('/api/agents', agentRoutes);
 
 // Terminal routes - SSE and write endpoints need special handling
 app.use('/api/terminal', (req, res, next) => {
