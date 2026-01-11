@@ -224,12 +224,13 @@ fi
 
 echo "✓ Correct Node.js version will be used in systemd service"
 
-# Create systemd service with absolute path
+# Create systemd service with absolute path and environment variables
 echo "Creating systemd service..."
 cat > /etc/systemd/system/atlasnode-agent.service << SERVICE_EOF
 [Unit]
 Description=AtlasNode Agent
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -241,6 +242,11 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="NODE_ENV=production"
+
+# Restart limits
+StartLimitInterval=60
+StartLimitBurst=3
 
 [Install]
 WantedBy=multi-user.target
@@ -340,10 +346,29 @@ async function installAgent(machineId) {
       }
     };
 
+    // Determine control server URL
+    // Priority: BACKEND_URL env var, then construct from HOST and PORT, fallback to localhost
+    let controlServerUrl = process.env.BACKEND_URL;
+    
+    if (!controlServerUrl) {
+      const backendHost = process.env.BACKEND_HOST || process.env.HOST || 'localhost';
+      const backendPort = process.env.PORT || 5000;
+      controlServerUrl = `http://${backendHost}:${backendPort}`;
+    }
+    
+    // Log the control server URL being used
+    await logInstallationStep(
+      machineId, 
+      'CONFIG', 
+      `Using control server URL: ${controlServerUrl}`, 
+      null, 
+      true
+    );
+    
     const agentConfig = {
       machineId,
       agentToken,
-      controlServer: process.env.BACKEND_URL || 'http://localhost:5000',
+      controlServer: controlServerUrl,
       port: agentPort,
       heartbeatInterval: 60000 // 1 minute
     };

@@ -1,87 +1,87 @@
-# AtlasNode Agent - Guia de Instalação
+# AtlasNode Agent - Installation Guide
 
-Este guia explica como instalar o AtlasNode Agent para que ele inicie automaticamente após o reboot do sistema.
+This guide explains how to install the AtlasNode Agent so it starts automatically after system reboot.
 
-## 📋 Pré-requisitos
+## 📋 Prerequisites
 
-- **Node.js** v14 ou superior
-- **Acesso root/administrador** ao sistema
-- Arquivo `config.json` configurado
+- **Node.js** v14 or higher
+- **Root/Administrator access** to the system
+- Configured `config.json` file
 
-## 🐧 Instalação no Linux (Recomendado)
+## 🐧 Linux Installation (Recommended)
 
-O agente usa systemd para inicialização automática no Linux.
+The agent uses systemd for automatic startup on Linux.
 
-### 1. Configure o arquivo config.json
+### 1. Configure config.json
 
 ```bash
 cd agent/
 cp config.example.json config.json
-nano config.json  # ou vim, ou seu editor preferido
+nano config.json  # or vim, or your preferred editor
 ```
 
-Edite as seguintes configurações:
-- `controlServer`: URL do servidor de controle
-- `machineId`: ID único da máquina
-- `agentToken`: Token de autenticação
-- `port`: Porta para o agente (padrão: 7777)
+Edit the following settings:
+- `controlServer`: Control server URL
+- `machineId`: Machine unique ID
+- `agentToken`: Authentication token
+- `port`: Agent port (default: 7777)
 
-### 2. Execute o script de instalação
+### 2. Run the installation script
 
 ```bash
 sudo chmod +x install.sh
 sudo ./install.sh
 ```
 
-O script irá:
-- ✓ Verificar dependências
-- ✓ Copiar arquivos para `/opt/atlasnode-agent`
-- ✓ Instalar dependências do Node.js
-- ✓ Criar e habilitar o serviço systemd
-- ✓ Iniciar o agente automaticamente
+The script will:
+- ✓ Check dependencies
+- ✓ Copy files to `/opt/atlasnode-agent`
+- ✓ Install Node.js dependencies
+- ✓ Create and enable systemd service
+- ✓ Start the agent automatically
 
-### 3. Verifique o status
+### 3. Check status
 
 ```bash
 sudo systemctl status atlasnode-agent
 ```
 
-### 4. Visualize os logs
+### 4. View logs
 
 ```bash
-# Logs em tempo real
+# Live logs
 sudo journalctl -u atlasnode-agent -f
 
-# Últimas 50 linhas
+# Last 50 lines
 sudo journalctl -u atlasnode-agent -n 50
 ```
 
-## 🔧 Comandos Úteis (Linux)
+## 🔧 Useful Commands (Linux)
 
 ```bash
-# Iniciar o serviço
+# Start service
 sudo systemctl start atlasnode-agent
 
-# Parar o serviço
+# Stop service
 sudo systemctl stop atlasnode-agent
 
-# Reiniciar o serviço
+# Restart service
 sudo systemctl restart atlasnode-agent
 
-# Ver status
+# View status
 sudo systemctl status atlasnode-agent
 
-# Desabilitar inicialização automática
+# Disable auto-start
 sudo systemctl disable atlasnode-agent
 
-# Habilitar inicialização automática
+# Enable auto-start
 sudo systemctl enable atlasnode-agent
 
-# Ver logs
+# View logs
 sudo journalctl -u atlasnode-agent -f
 ```
 
-## 🗑️ Desinstalação (Linux)
+## 🗑️ Uninstallation (Linux)
 
 ```bash
 cd agent/
@@ -89,27 +89,27 @@ sudo chmod +x uninstall.sh
 sudo ./uninstall.sh
 ```
 
-## 🪟 Instalação no Windows
+## 🪟 Windows Installation
 
-### Opção 1: Usando NSSM (Recomendado)
+### Option 1: Using NSSM (Recommended)
 
-1. **Baixe o NSSM** (Non-Sucking Service Manager)
+1. **Download NSSM** (Non-Sucking Service Manager)
    - https://nssm.cc/download
-   - Extraia e adicione ao PATH do sistema
+   - Extract and add to system PATH
 
-2. **Configure o config.json**
+2. **Configure config.json**
    ```cmd
    cd agent
    copy config.example.json config.json
    notepad config.json
    ```
 
-3. **Execute o instalador** (como Administrador)
+3. **Run installer** (as Administrator)
    ```cmd
    install.bat
    ```
 
-4. **Instale o serviço com NSSM**
+4. **Install service with NSSM**
    ```cmd
    cd agent
    nssm install AtlasNodeAgent "C:\Program Files\nodejs\node.exe" "%CD%\agent.js"
@@ -122,112 +122,111 @@ sudo ./uninstall.sh
    nssm start AtlasNodeAgent
    ```
 
-### Opção 2: Usando Agendador de Tarefas do Windows
+### Option 2: Using Windows Task Scheduler
 
-1. Abra o **Agendador de Tarefas** (Task Scheduler)
-2. Clique em **Criar Tarefa Básica**
+1. Open **Task Scheduler**
+2. Click **Create Basic Task**
 3. Configure:
-   - **Nome**: AtlasNode Agent
-   - **Gatilho**: Ao iniciar o computador
-   - **Ação**: Iniciar um programa
-   - **Programa**: `C:\caminho\para\agent\start-agent.bat`
-   - Marque: **Executar com privilégios mais altos**
+   - **Name**: AtlasNode Agent
+   - **Trigger**: When computer starts
+   - **Action**: Start a program
+   - **Program**: `C:\path\to\agent\start-agent.bat`
+   - Check: **Run with highest privileges**
 
-## 🔄 Comportamento de Reinicialização
+## 🔄 Restart Behavior
 
-O serviço está configurado para:
+The service is configured to:
 
 ### Linux (systemd)
-- **Restart=always**: Reinicia sempre que o processo termina
-- **RestartSec=10**: Aguarda 10 segundos antes de reiniciar
-- **StartLimitBurst=3**: Tenta reiniciar até 3 vezes em 60 segundos
-- **After=network-online.target**: Aguarda a rede estar disponível
-- **WantedBy=multi-user.target**: Inicia no boot do sistema
+- **Restart=always**: Restarts whenever the process terminates
+- **RestartSec=10**: Waits 10 seconds before restarting
+- **StartLimitBurst=3**: Tries to restart up to 3 times in 60 seconds
+- **After=network-online.target**: Waits for network to be available
+- **WantedBy=multi-user.target**: Starts on system boot
 
 ### Windows (NSSM)
-- **SERVICE_AUTO_START**: Inicia automaticamente com o Windows
-- **AppExit Default Restart**: Reinicia em caso de falha
-- **AppRestartDelay 10000**: Aguarda 10 segundos antes de reiniciar
+- **SERVICE_AUTO_START**: Starts automatically with Windows
+- **AppExit Default Restart**: Restarts on failure
+- **AppRestartDelay 10000**: Waits 10 seconds before restarting
 
-## 📊 Verificando se o Auto-Start está Funcionando
+## 📊 Verifying Auto-Start is Working
 
 ### Linux
 ```bash
-# Verifica se o serviço está habilitado
+# Check if service is enabled
 systemctl is-enabled atlasnode-agent
 
-# Deve retornar: enabled
+# Should return: enabled
 ```
 
 ### Windows
 ```cmd
-# Usando NSSM
+# Using NSSM
 nssm status AtlasNodeAgent
 
-# Ou verifique o serviço
+# Or check service
 sc query AtlasNodeAgent
 ```
 
-## 🐛 Solução de Problemas
+## 🐛 Troubleshooting
 
-### O serviço não inicia após reboot
+### Service doesn't start after reboot
 
 **Linux:**
 ```bash
-# Verifique o status
+# Check status
 sudo systemctl status atlasnode-agent
 
-# Verifique os logs
+# Check logs
 sudo journalctl -u atlasnode-agent -n 100
 
-# Verifique se está habilitado
+# Check if enabled
 systemctl is-enabled atlasnode-agent
 ```
 
 **Windows:**
 ```cmd
-# Verifique o log de eventos do Windows
+# Check Windows Event Log
 eventvwr.msc
 ```
 
-### Erro: "Cannot reach control server"
+### Error: "Cannot reach control server"
 
-Verifique se:
-- O `controlServer` no `config.json` está correto
-- A máquina tem acesso à internet/rede
-- O servidor de controle está rodando
-- O firewall não está bloqueando a conexão
+Check if:
+- `controlServer` in `config.json` is correct
+- Machine has internet/network access
+- Control server is running
+- Firewall is not blocking the connection
 
-### Erro de permissões
+### Permission errors
 
 **Linux:**
 ```bash
-# Verifique as permissões dos arquivos
+# Check file permissions
 ls -la /opt/atlasnode-agent/
 
-# Ajuste se necessário
+# Fix if needed
 sudo chown -R root:root /opt/atlasnode-agent/
 sudo chmod -R 755 /opt/atlasnode-agent/
 ```
 
-## 🔒 Considerações de Segurança
+## 🔒 Security Considerations
 
-- O agente roda como **root** no Linux para acesso completo ao sistema
-- Proteja o `agentToken` no `config.json`
-- Use HTTPS no `controlServer` em produção
-- Configure firewall para permitir apenas IPs autorizados na porta do agente
+- Agent runs as **root** on Linux for full system access
+- Protect `agentToken` in `config.json`
+- Use HTTPS for `controlServer` in production
+- Configure firewall to allow only authorized IPs on agent port
 
-## 📝 Notas Adicionais
+## 📝 Additional Notes
 
-- O agente envia heartbeat a cada 60 segundos (configurável)
-- Discovery de portas/screens a cada 30 segundos
-- Logs são armazenados via journald (Linux) ou Event Viewer (Windows)
-- O serviço aguarda a rede estar disponível antes de iniciar
+- Agent sends heartbeat every 60 seconds (configurable)
+- Port/screen discovery every 30 seconds
+- Logs stored via journald (Linux) or Event Viewer (Windows)
+- Service waits for network availability before starting
 
-## 🆘 Suporte
+## 🆘 Support
 
-Para problemas ou dúvidas:
-1. Verifique os logs primeiro
-2. Consulte a documentação principal
-3. Abra uma issue no repositório GitHub
-
+For issues or questions:
+1. Check logs first
+2. Consult main documentation
+3. Open an issue on GitHub repository

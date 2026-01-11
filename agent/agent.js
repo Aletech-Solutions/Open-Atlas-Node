@@ -42,19 +42,44 @@ app.get('/health', (req, res) => {
 // System information endpoints (all require auth)
 app.get('/system/info', verifyToken, async (req, res) => {
   try {
-    const [cpu, mem, osInfo, disk, network] = await Promise.all([
+    const [cpu, cpuLoad, mem, osInfo, disk, network] = await Promise.all([
       si.cpu(),
+      si.currentLoad(),
       si.mem(),
       si.osInfo(),
       si.fsSize(),
       si.networkInterfaces()
     ]);
 
+    // Enrich CPU data with current load
+    const cpuData = {
+      ...cpu,
+      load: cpuLoad.currentLoad || 0,
+      loadIdle: cpuLoad.currentLoadIdle || 0
+    };
+
+    // Enrich memory data with calculated percentage
+    const memoryData = {
+      ...mem,
+      used: mem.used || 0,
+      total: mem.total || 0,
+      free: mem.free || 0,
+      usedPercent: mem.total > 0 ? ((mem.used / mem.total) * 100).toFixed(2) : '0'
+    };
+
+    // Ensure disk data has proper structure
+    const diskData = disk.map(d => ({
+      ...d,
+      used: d.used || 0,
+      size: d.size || 0,
+      use: d.use || 0
+    }));
+
     res.json({ 
-      cpu, 
-      memory: mem, 
+      cpu: cpuData, 
+      memory: memoryData, 
       os: osInfo, 
-      disk, 
+      disk: diskData, 
       network 
     });
   } catch (error) {
@@ -71,7 +96,12 @@ app.get('/system/cpu', verifyToken, async (req, res) => {
     ]);
 
     res.json({ 
-      load: currentLoad,
+      load: {
+        currentLoad: currentLoad.currentLoad || 0,
+        currentLoadIdle: currentLoad.currentLoadIdle || 0,
+        currentLoadUser: currentLoad.currentLoadUser || 0,
+        currentLoadSystem: currentLoad.currentLoadSystem || 0
+      },
       temperature: cpuTemp
     });
   } catch (error) {
@@ -83,7 +113,25 @@ app.get('/system/cpu', verifyToken, async (req, res) => {
 app.get('/system/memory', verifyToken, async (req, res) => {
   try {
     const mem = await si.mem();
-    res.json(mem);
+    
+    // Ensure all values are properly set with defaults
+    const memoryData = {
+      total: mem.total || 0,
+      free: mem.free || 0,
+      used: mem.used || 0,
+      active: mem.active || 0,
+      available: mem.available || 0,
+      buffers: mem.buffers || 0,
+      cached: mem.cached || 0,
+      slab: mem.slab || 0,
+      buffcache: mem.buffcache || 0,
+      swaptotal: mem.swaptotal || 0,
+      swapused: mem.swapused || 0,
+      swapfree: mem.swapfree || 0,
+      usedPercent: mem.total > 0 ? ((mem.used / mem.total) * 100).toFixed(2) : '0'
+    };
+    
+    res.json(memoryData);
   } catch (error) {
     console.error('Memory info error:', error);
     res.status(500).json({ error: error.message });
@@ -373,19 +421,19 @@ async function sendHeartbeat() {
     // Prepare hardware info with GPU if available
     const hardwareInfo = {
       cpu: {
-        manufacturer: cpu.manufacturer,
-        brand: cpu.brand,
-        cores: cpu.cores,
-        physicalCores: cpu.physicalCores,
-        processors: cpu.processors,
-        speed: cpu.speed,
-        speedMax: cpu.speedMax,
-        speedMin: cpu.speedMin
+        manufacturer: cpu.manufacturer || 'Unknown',
+        brand: cpu.brand || 'Unknown',
+        cores: cpu.cores || 0,
+        physicalCores: cpu.physicalCores || 0,
+        processors: cpu.processors || 0,
+        speed: cpu.speed || 0,
+        speedMax: cpu.speedMax || 0,
+        speedMin: cpu.speedMin || 0
       },
       memory: {
-        total: mem.total,
-        used: mem.used,
-        free: mem.free,
+        total: mem.total || 0,
+        used: mem.used || 0,
+        free: mem.free || 0,
         type: 'RAM'
       }
     };
@@ -417,15 +465,16 @@ async function sendHeartbeat() {
         },
         metrics: {
           cpu: {
-            load: cpuLoad.currentLoad,
-            idle: cpuLoad.currentLoadIdle
+            load: cpuLoad.currentLoad || 0,
+            idle: cpuLoad.currentLoadIdle || 0
           },
           memory: {
-            used: mem.used,
-            free: mem.free,
-            available: mem.available,
-            active: mem.active,
-            usedPercent: (mem.used / mem.total * 100).toFixed(2)
+            used: mem.used || 0,
+            free: mem.free || 0,
+            available: mem.available || 0,
+            active: mem.active || 0,
+            total: mem.total || 0,
+            usedPercent: mem.total > 0 ? ((mem.used / mem.total) * 100).toFixed(2) : '0'
           }
         }
       },

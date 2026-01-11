@@ -1,12 +1,12 @@
-# ⚡ AtlasNode Agent - Guia Rápido de Auto-Start
+# ⚡ AtlasNode Agent - Quick Start Guide
 
-## 📋 Resumo
+## 📋 Summary
 
-Este guia mostra como instalar o agente AtlasNode com **reinicialização automática** após reboot do sistema.
+This guide shows how to install the AtlasNode agent with **automatic restart** after system reboot.
 
 ---
 
-## 🐧 Linux (Método Recomendado)
+## 🐧 Linux (Recommended Method)
 
 ### 1️⃣ Configure
 
@@ -16,31 +16,31 @@ cp config.example.json config.json
 nano config.json
 ```
 
-Edite:
-- `machineId`: 1 (ou próximo ID disponível)
-- `agentToken`: "seu-token-seguro-aqui"
-- `controlServer`: "http://IP-DO-SERVIDOR:5000"
+Edit:
+- `machineId`: 1 (or next available ID)
+- `agentToken`: "your-secure-token-here"
+- `controlServer`: "http://SERVER-IP:5000"
 
-### 2️⃣ Instale
+### 2️⃣ Install
 
 ```bash
 chmod +x install.sh
 sudo ./install.sh
 ```
 
-### 3️⃣ Verifique
+### 3️⃣ Verify
 
 ```bash
 chmod +x status.sh
 sudo ./status.sh
 ```
 
-### ✅ Pronto!
+### ✅ Done!
 
-O agente agora:
-- ✓ Inicia automaticamente no boot
-- ✓ Reinicia automaticamente se falhar
-- ✓ Reconecta automaticamente após perda de rede
+The agent now:
+- ✓ Starts automatically on boot
+- ✓ Restarts automatically if it fails
+- ✓ Reconnects automatically after network loss
 
 ---
 
@@ -54,19 +54,19 @@ copy config.example.json config.json
 notepad config.json
 ```
 
-### 2️⃣ Instale NSSM
+### 2️⃣ Install NSSM
 
-Baixe: https://nssm.cc/download
+Download: https://nssm.cc/download
 
-### 3️⃣ Instale o Agente
+### 3️⃣ Install Agent
 
 ```cmd
 install.bat
 ```
 
-Siga as instruções na tela.
+Follow on-screen instructions.
 
-### 4️⃣ Verifique
+### 4️⃣ Verify
 
 ```cmd
 status.bat
@@ -74,9 +74,9 @@ status.bat
 
 ---
 
-## 🧪 Teste Rápido
+## 🧪 Quick Test
 
-### Verificar se está rodando
+### Check if running
 
 **Linux:**
 ```bash
@@ -90,7 +90,7 @@ nssm status AtlasNodeAgent
 curl http://localhost:7777/health
 ```
 
-### Teste de reinicialização
+### Restart test
 
 ```bash
 # Linux
@@ -100,111 +100,110 @@ sudo systemctl restart atlasnode-agent
 nssm restart AtlasNodeAgent
 ```
 
-### Teste de reboot
+### Reboot test
 
 ```bash
-# Reinicie a máquina
+# Reboot machine
 sudo reboot
 
-# Após reboot, verifique
+# After reboot, check
 systemctl status atlasnode-agent
 ```
 
 ---
 
-## 📊 Comandos Úteis
+## 📊 Useful Commands
 
 ### Linux
 
 ```bash
-# Iniciar
+# Start
 sudo systemctl start atlasnode-agent
 
-# Parar
+# Stop
 sudo systemctl stop atlasnode-agent
 
 # Status
 sudo systemctl status atlasnode-agent
 
-# Logs ao vivo
+# Live logs
 journalctl -u atlasnode-agent -f
 
-# Status completo
+# Complete status
 sudo ./status.sh
 ```
 
 ### Windows
 
 ```cmd
-# Iniciar
+# Start
 nssm start AtlasNodeAgent
 
-# Parar
+# Stop
 nssm stop AtlasNodeAgent
 
 # Status
 nssm status AtlasNodeAgent
 
-# Status completo
+# Complete status
 status.bat
 ```
 
 ---
 
-## 🛠️ Problemas Comuns
+## 🛠️ Common Issues
 
-### Não consegue conectar ao servidor
+### Can't connect to server
 
 ```bash
-# Teste conectividade
-ping IP-DO-SERVIDOR
-curl http://IP-DO-SERVIDOR:5000
+# Test connectivity
+ping SERVER-IP
+curl http://SERVER-IP:5000
 
-# Verifique config.json
+# Check config.json
 cat config.json
 ```
 
-### Serviço não inicia
+### Service won't start
 
 **Linux:**
 ```bash
-# Veja os logs
+# View logs
 journalctl -u atlasnode-agent -n 50
 
-# Teste manualmente
+# Test manually
 cd /opt/atlasnode-agent
 sudo node agent.js
 ```
 
-### Firewall bloqueando
+### Firewall blocking
 
 **Linux:**
 ```bash
-# Libere a porta 7777
+# Allow port 7777
 sudo ufw allow 7777
 ```
 
 ---
 
-## 📚 Documentação Completa
+## 📚 Complete Documentation
 
-- [README-INSTALLATION.md](README-INSTALLATION.md) - Guia detalhado de instalação
-- [AUTO-START-SETUP.md](AUTO-START-SETUP.md) - Detalhes sobre auto-start
-- [../README.md](../README.md) - Documentação principal do AtlasNode
-
----
-
-## ✅ Checklist Pós-Instalação
-
-- [ ] Config.json configurado
-- [ ] Instalador executado com sucesso
-- [ ] Serviço rodando (`status.sh` ou `status.bat`)
-- [ ] Auto-start habilitado
-- [ ] Health check funcionando (`curl http://localhost:7777/health`)
-- [ ] Máquina aparece online no dashboard
-- [ ] Teste de reboot realizado
+- [README-INSTALLATION.md](README-INSTALLATION.md) - Detailed installation guide
+- [AUTO-START-SETUP.md](AUTO-START-SETUP.md) - Auto-start details
+- [../README.md](../README.md) - Main AtlasNode documentation
 
 ---
 
-**🎉 Instalação completa! Seu agente está protegido contra reinicializações.**
+## ✅ Post-Installation Checklist
 
+- [ ] Config.json configured
+- [ ] Installer executed successfully
+- [ ] Service running (`status.sh` or `status.bat`)
+- [ ] Auto-start enabled
+- [ ] Health check working (`curl http://localhost:7777/health`)
+- [ ] Machine appears online in dashboard
+- [ ] Reboot test performed
+
+---
+
+**🎉 Installation complete! Your agent is now protected against reboots.**

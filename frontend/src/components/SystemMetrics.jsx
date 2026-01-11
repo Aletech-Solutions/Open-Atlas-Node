@@ -74,7 +74,9 @@ export default function SystemMetrics({ machineId }) {
               <div>
                 <p className="text-sm text-gray-600">CPU Load</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {currentMetrics.cpu?.load?.toFixed(1)}%
+                  {currentMetrics.cpu?.load !== undefined
+                    ? currentMetrics.cpu.load.toFixed(1)
+                    : '0'}%
                 </p>
               </div>
               <Cpu className="w-10 h-10 text-primary-600" />
@@ -86,7 +88,9 @@ export default function SystemMetrics({ machineId }) {
               <div>
                 <p className="text-sm text-gray-600">Memory Used</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {((currentMetrics.memory?.used / currentMetrics.memory?.total) * 100).toFixed(1)}%
+                  {currentMetrics.memory?.used && currentMetrics.memory?.total
+                    ? ((currentMetrics.memory.used / currentMetrics.memory.total) * 100).toFixed(1)
+                    : '0'}%
                 </p>
               </div>
               <HardDrive className="w-10 h-10 text-primary-600" />
@@ -98,7 +102,9 @@ export default function SystemMetrics({ machineId }) {
               <div>
                 <p className="text-sm text-gray-600">Disk Used</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {currentMetrics.disk?.[0]?.use?.toFixed(1)}%
+                  {currentMetrics.disk?.[0]?.use !== undefined
+                    ? currentMetrics.disk[0].use.toFixed(1)
+                    : '0'}%
                 </p>
               </div>
               <Activity className="w-10 h-10 text-primary-600" />

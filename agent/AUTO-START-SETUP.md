@@ -1,26 +1,26 @@
-# 🚀 Configuração de Auto-Start do AtlasNode Agent
+# 🚀 AtlasNode Agent Auto-Start Setup
 
-## ✅ O Que Foi Implementado
+## ✅ What Has Been Implemented
 
-Este sistema garante que o agente AtlasNode **sempre reinicie automaticamente** após um reboot do sistema, evitando perda de conexão.
+This system ensures that the AtlasNode agent **always restarts automatically** after a system reboot, avoiding connection loss.
 
-### 📦 Arquivos Criados
+### 📦 Files Created
 
 ```
 agent/
-├── atlasnode-agent.service    # Serviço systemd (Linux)
-├── install.sh                 # Instalador automático (Linux)
-├── uninstall.sh               # Desinstalador (Linux)
-├── install.bat                # Instalador (Windows)
-├── status.sh                  # Verificador de status (Linux)
-├── status.bat                 # Verificador de status (Windows)
-├── README-INSTALLATION.md     # Guia completo de instalação
-└── AUTO-START-SETUP.md        # Este arquivo (resumo)
+├── atlasnode-agent.service    # systemd service (Linux)
+├── install.sh                 # Automatic installer (Linux)
+├── uninstall.sh               # Uninstaller (Linux)
+├── install.bat                # Installer (Windows)
+├── status.sh                  # Status checker (Linux)
+├── status.bat                 # Status checker (Windows)
+├── README-INSTALLATION.md     # Complete installation guide
+└── AUTO-START-SETUP.md        # This file (summary)
 ```
 
-## 🐧 Instalação Rápida - Linux (Recomendado)
+## 🐧 Quick Installation - Linux (Recommended)
 
-### Passo 1: Configure o config.json
+### Step 1: Configure config.json
 
 ```bash
 cd agent/
@@ -28,34 +28,34 @@ cp config.example.json config.json
 nano config.json
 ```
 
-Edite:
-- `machineId`: ID único (ex: 1, 2, 3...)
-- `agentToken`: Token seguro (ex: "abc123xyz...")
-- `controlServer`: URL do servidor (ex: "http://192.168.1.100:5000")
+Edit:
+- `machineId`: Unique ID (e.g., 1, 2, 3...)
+- `agentToken`: Secure token (e.g., "abc123xyz...")
+- `controlServer`: Server URL (e.g., "http://192.168.1.100:5000")
 
-### Passo 2: Execute o instalador
+### Step 2: Run installer
 
 ```bash
 sudo chmod +x install.sh
 sudo ./install.sh
 ```
 
-✨ **Pronto!** O agente agora:
-- ✓ Inicia automaticamente no boot
-- ✓ Reinicia automaticamente se falhar
-- ✓ Aguarda a rede estar disponível
-- ✓ Registra logs no systemd journal
+✨ **Done!** The agent now:
+- ✓ Starts automatically on boot
+- ✓ Restarts automatically if it fails
+- ✓ Waits for network availability
+- ✓ Logs to systemd journal
 
-### Passo 3: Verifique o status
+### Step 3: Check status
 
 ```bash
 sudo chmod +x status.sh
 sudo ./status.sh
 ```
 
-## 🪟 Instalação Rápida - Windows
+## 🪟 Quick Installation - Windows
 
-### Passo 1: Configure o config.json
+### Step 1: Configure config.json
 
 ```cmd
 cd agent
@@ -63,93 +63,93 @@ copy config.example.json config.json
 notepad config.json
 ```
 
-### Passo 2: Instale o NSSM
+### Step 2: Install NSSM
 
-1. Baixe: https://nssm.cc/download
-2. Extraia e adicione ao PATH
+1. Download: https://nssm.cc/download
+2. Extract and add to PATH
 
-### Passo 3: Execute o instalador
+### Step 3: Run installer
 
 ```cmd
 install.bat
 ```
 
-Siga as instruções na tela para configurar o serviço Windows.
+Follow on-screen instructions to configure Windows service.
 
-## 🔍 Verificando se o Auto-Start Está Funcionando
+## 🔍 Verifying Auto-Start is Working
 
 ### Linux
 
 ```bash
-# Método 1: Use o script de status
+# Method 1: Use status script
 sudo ./status.sh
 
-# Método 2: Comandos manuais
-systemctl is-enabled atlasnode-agent    # Deve retornar "enabled"
-systemctl is-active atlasnode-agent     # Deve retornar "active"
-systemctl status atlasnode-agent        # Mostra status detalhado
+# Method 2: Manual commands
+systemctl is-enabled atlasnode-agent    # Should return "enabled"
+systemctl is-active atlasnode-agent     # Should return "active"
+systemctl status atlasnode-agent        # Shows detailed status
 ```
 
 ### Windows
 
 ```cmd
-# Método 1: Use o script de status
+# Method 1: Use status script
 status.bat
 
-# Método 2: Verificar serviço
+# Method 2: Check service
 sc query AtlasNodeAgent
 nssm status AtlasNodeAgent
 ```
 
-## 🔄 Comportamento de Reinicialização
+## 🔄 Restart Behavior
 
-### Quando o agente reinicia automaticamente?
+### When does the agent restart automatically?
 
-1. **No boot do sistema** - Inicia automaticamente
-2. **Após falha/crash** - Reinicia após 10 segundos
-3. **Após reboot manual** - Reinicia no próximo boot
-4. **Após perda de rede** - Continua tentando se reconectar
+1. **On system boot** - Starts automatically
+2. **After failure/crash** - Restarts after 10 seconds
+3. **After manual reboot** - Restarts on next boot
+4. **After network loss** - Keeps trying to reconnect
 
-### Configurações de Reinicialização (Linux/systemd)
+### Restart Settings (Linux/systemd)
 
 ```ini
-Restart=always              # Sempre reinicia
-RestartSec=10              # Aguarda 10s antes de reiniciar
-StartLimitBurst=3          # Tenta até 3x em 60s
-After=network-online.target # Aguarda a rede
+Restart=always              # Always restart
+RestartSec=10              # Wait 10s before restarting
+StartLimitBurst=3          # Try up to 3x in 60s
+After=network-online.target # Wait for network
 ```
 
-## 📊 Monitoramento e Logs
+## 📊 Monitoring and Logs
 
 ### Linux
 
 ```bash
-# Ver logs em tempo real
+# View live logs
 journalctl -u atlasnode-agent -f
 
-# Ver últimas 50 linhas
+# View last 50 lines
 journalctl -u atlasnode-agent -n 50
 
-# Ver logs desde o último boot
+# View logs since last boot
 journalctl -u atlasnode-agent -b
 
-# Ver logs com timestamp
+# View logs with timestamp
 journalctl -u atlasnode-agent --since "10 minutes ago"
 ```
 
 ### Windows
 
 ```cmd
-# Ver log de eventos
+# View Event Log
 eventvwr.msc
 
-# Ou use NSSM para ver logs
+# Or use NSSM to view logs
 nssm status AtlasNodeAgent
 ```
 
-## 🧪 Testando o Auto-Start
+## 🧪 Testing Auto-Start
 
-### Teste 1: Reiniciar o Serviço
+### Test 1: Restart Service
 
 **Linux:**
 ```bash
@@ -163,61 +163,61 @@ nssm restart AtlasNodeAgent
 nssm status AtlasNodeAgent
 ```
 
-### Teste 2: Simular Crash
+### Test 2: Simulate Crash
 
 **Linux:**
 ```bash
-# Mate o processo
+# Kill the process
 sudo pkill -9 node
 
-# Aguarde 10 segundos e verifique
+# Wait 10 seconds and check
 sleep 10
 sudo systemctl status atlasnode-agent
-# Deve estar rodando novamente!
+# Should be running again!
 ```
 
-### Teste 3: Reboot Completo
+### Test 3: Complete Reboot
 
 ```bash
-# Anote o uptime atual do agente
+# Note current agent uptime
 curl http://localhost:7777/health
 
-# Reinicie a máquina
+# Reboot machine
 sudo reboot
 
-# Após o reboot, verifique se o agente está rodando
+# After reboot, check if agent is running
 sudo systemctl status atlasnode-agent
 curl http://localhost:7777/health
 ```
 
-## ⚙️ Comandos Úteis
+## ⚙️ Useful Commands
 
 ### Linux (systemd)
 
-| Comando | Descrição |
-|---------|-----------|
-| `sudo systemctl start atlasnode-agent` | Iniciar serviço |
-| `sudo systemctl stop atlasnode-agent` | Parar serviço |
-| `sudo systemctl restart atlasnode-agent` | Reiniciar serviço |
-| `sudo systemctl status atlasnode-agent` | Ver status |
-| `sudo systemctl enable atlasnode-agent` | Habilitar auto-start |
-| `sudo systemctl disable atlasnode-agent` | Desabilitar auto-start |
-| `journalctl -u atlasnode-agent -f` | Ver logs ao vivo |
-| `sudo ./status.sh` | Status completo |
+| Command | Description |
+|---------|-------------|
+| `sudo systemctl start atlasnode-agent` | Start service |
+| `sudo systemctl stop atlasnode-agent` | Stop service |
+| `sudo systemctl restart atlasnode-agent` | Restart service |
+| `sudo systemctl status atlasnode-agent` | View status |
+| `sudo systemctl enable atlasnode-agent` | Enable auto-start |
+| `sudo systemctl disable atlasnode-agent` | Disable auto-start |
+| `journalctl -u atlasnode-agent -f` | View live logs |
+| `sudo ./status.sh` | Complete status |
 
 ### Windows (NSSM)
 
-| Comando | Descrição |
-|---------|-----------|
-| `nssm start AtlasNodeAgent` | Iniciar serviço |
-| `nssm stop AtlasNodeAgent` | Parar serviço |
-| `nssm restart AtlasNodeAgent` | Reiniciar serviço |
-| `nssm status AtlasNodeAgent` | Ver status |
-| `nssm install AtlasNodeAgent [...]` | Instalar serviço |
-| `nssm remove AtlasNodeAgent` | Remover serviço |
-| `status.bat` | Status completo |
+| Command | Description |
+|---------|-------------|
+| `nssm start AtlasNodeAgent` | Start service |
+| `nssm stop AtlasNodeAgent` | Stop service |
+| `nssm restart AtlasNodeAgent` | Restart service |
+| `nssm status AtlasNodeAgent` | View status |
+| `nssm install AtlasNodeAgent [...]` | Install service |
+| `nssm remove AtlasNodeAgent` | Remove service |
+| `status.bat` | Complete status |
 
-## 🗑️ Desinstalação
+## 🗑️ Uninstallation
 
 ### Linux
 
@@ -233,60 +233,60 @@ nssm stop AtlasNodeAgent
 nssm remove AtlasNodeAgent confirm
 ```
 
-## 🛠️ Solução de Problemas
+## 🛠️ Troubleshooting
 
-### Problema: Serviço não inicia após reboot
+### Problem: Service doesn't start after reboot
 
 **Linux:**
 ```bash
-# Verifique o status
+# Check status
 sudo systemctl status atlasnode-agent
 
-# Verifique se está habilitado
+# Check if enabled
 systemctl is-enabled atlasnode-agent
 
-# Se não estiver, habilite
+# If not enabled, enable it
 sudo systemctl enable atlasnode-agent
 
-# Verifique os logs
+# Check logs
 journalctl -u atlasnode-agent -n 100
 ```
 
-### Problema: Erro "Cannot reach control server"
+### Problem: Error "Cannot reach control server"
 
-**Soluções:**
-1. Verifique se o `controlServer` no `config.json` está correto
-2. Teste a conectividade: `curl http://seu-servidor:5000/api/health`
-3. Verifique o firewall: `sudo ufw status`
-4. Verifique se o servidor de controle está rodando
+**Solutions:**
+1. Check if `controlServer` in `config.json` is correct
+2. Test connectivity: `curl http://your-server:5000/api/health`
+3. Check firewall: `sudo ufw status`
+4. Verify control server is running
 
-### Problema: Agente reinicia em loop
+### Problem: Agent restarts in loop
 
-**Causa comum:** config.json inválido ou servidor inacessível
+**Common cause:** Invalid config.json or unreachable server
 
-**Solução:**
+**Solution:**
 ```bash
-# Pare o serviço temporariamente
+# Stop service temporarily
 sudo systemctl stop atlasnode-agent
 
-# Verifique o config.json
+# Check config.json
 cat /opt/atlasnode-agent/config.json
 
-# Teste manualmente
+# Test manually
 cd /opt/atlasnode-agent
 node agent.js
 
-# Se funcionar, reinicie o serviço
+# If it works, restart service
 sudo systemctl start atlasnode-agent
 ```
 
-## 🔒 Segurança
+## 🔒 Security
 
-### Permissões dos Arquivos
+### File Permissions
 
 **Linux:**
 ```bash
-# Permissões recomendadas
+# Recommended permissions
 sudo chown -R root:root /opt/atlasnode-agent/
 sudo chmod 755 /opt/atlasnode-agent/
 sudo chmod 600 /opt/atlasnode-agent/config.json
@@ -296,43 +296,43 @@ sudo chmod 600 /opt/atlasnode-agent/config.json
 
 **Linux (ufw):**
 ```bash
-# Permitir apenas do servidor de controle
+# Allow only from control server
 sudo ufw allow from 192.168.1.100 to any port 7777
 ```
 
 **Linux (iptables):**
 ```bash
-# Permitir apenas do servidor de controle
+# Allow only from control server
 sudo iptables -A INPUT -p tcp -s 192.168.1.100 --dport 7777 -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 7777 -j DROP
 ```
 
-## 📈 Métricas de Monitoramento
+## 📈 Monitoring Metrics
 
-O agente envia dados regularmente:
+The agent sends data regularly:
 
-- **Heartbeat**: A cada 60 segundos (configurável)
-- **Discovery (portas/screens)**: A cada 30 segundos
-- **Registro inicial**: Na primeira inicialização
+- **Heartbeat**: Every 60 seconds (configurable)
+- **Discovery (ports/screens)**: Every 30 seconds
+- **Initial registration**: On first startup
 
-### Verificar Conectividade
+### Check Connectivity
 
 ```bash
-# Health check local
+# Local health check
 curl http://localhost:7777/health
 
-# Ver se está enviando heartbeat
+# See if heartbeat is being sent
 journalctl -u atlasnode-agent -f | grep "Heartbeat sent"
 
-# Ver se está enviando discovery
+# See if discovery is being sent
 journalctl -u atlasnode-agent -f | grep "Discovery"
 ```
 
-## 📝 Configuração Avançada
+## 📝 Advanced Configuration
 
-### Alterar Intervalo de Heartbeat
+### Change Heartbeat Interval
 
-Edite `/opt/atlasnode-agent/config.json`:
+Edit `/opt/atlasnode-agent/config.json`:
 
 ```json
 {
@@ -340,69 +340,68 @@ Edite `/opt/atlasnode-agent/config.json`:
 }
 ```
 
-Valores em milissegundos:
-- 30000 = 30 segundos
-- 60000 = 1 minuto (padrão)
-- 120000 = 2 minutos
+Values in milliseconds:
+- 30000 = 30 seconds
+- 60000 = 1 minute (default)
+- 120000 = 2 minutes
 
-Após editar, reinicie:
+After editing, restart:
 ```bash
 sudo systemctl restart atlasnode-agent
 ```
 
-### Executar como Usuário Não-Root (Linux)
+### Run as Non-Root User (Linux)
 
-⚠️ **Aviso:** Algumas funcionalidades podem não funcionar sem privilégios root.
+⚠️ **Warning:** Some features may not work without root privileges.
 
-1. Crie um usuário dedicado:
+1. Create dedicated user:
 ```bash
 sudo useradd -r -s /bin/false atlasnode
 ```
 
-2. Edite o serviço:
+2. Edit service:
 ```bash
 sudo nano /etc/systemd/system/atlasnode-agent.service
 ```
 
-3. Altere a linha `User=root` para `User=atlasnode`
+3. Change line `User=root` to `User=atlasnode`
 
-4. Ajuste permissões:
+4. Fix permissions:
 ```bash
 sudo chown -R atlasnode:atlasnode /opt/atlasnode-agent/
 ```
 
-5. Recarregue e reinicie:
+5. Reload and restart:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl restart atlasnode-agent
 ```
 
-## ✅ Checklist Pós-Instalação
+## ✅ Post-Installation Checklist
 
-- [ ] Agente instalado e rodando
-- [ ] Auto-start habilitado
-- [ ] Config.json configurado corretamente
-- [ ] Conectividade com servidor de controle testada
-- [ ] Logs verificados sem erros
-- [ ] Teste de reboot realizado
-- [ ] Firewall configurado (se necessário)
-- [ ] Máquina aparece online no dashboard
+- [ ] Agent installed and running
+- [ ] Auto-start enabled
+- [ ] Config.json configured correctly
+- [ ] Connectivity with control server tested
+- [ ] Logs checked without errors
+- [ ] Reboot test performed
+- [ ] Firewall configured (if needed)
+- [ ] Machine appears online in dashboard
 
-## 🎉 Conclusão
+## 🎉 Conclusion
 
-Seu agente AtlasNode está agora configurado para **sempre reiniciar automaticamente**!
+Your AtlasNode agent is now configured to **always restart automatically**!
 
-Em caso de:
-- ✅ Reboot do sistema → Agente inicia automaticamente
-- ✅ Falha/crash → Agente reinicia em 10 segundos
-- ✅ Perda de rede → Agente continua tentando reconectar
-- ✅ Atualização do sistema → Agente volta após reboot
+In case of:
+- ✅ System reboot → Agent starts automatically
+- ✅ Failure/crash → Agent restarts in 10 seconds
+- ✅ Network loss → Agent keeps trying to reconnect
+- ✅ System update → Agent returns after reboot
 
-Para suporte adicional, consulte:
-- [README-INSTALLATION.md](README-INSTALLATION.md) - Guia detalhado
-- [README.md](../README.md) - Documentação principal
+For additional support, see:
+- [README-INSTALLATION.md](README-INSTALLATION.md) - Detailed guide
+- [README.md](../README.md) - Main documentation
 
 ---
 
-**Desenvolvido para AtlasNode** - Sistema de Gerenciamento de Homelab
-
+**Built for AtlasNode** - Homelab Management System

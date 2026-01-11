@@ -34,6 +34,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_this_secret_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      BACKEND_HOST: ${BACKEND_HOST:-}
+      BACKEND_URL: ${BACKEND_URL:-}
     depends_on:
       database:
         condition: service_healthy

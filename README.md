@@ -52,11 +52,19 @@ chmod +x scripts/setup.sh
 ./scripts/setup.sh
 ```
 
+The setup script will:
+- Generate secure JWT secret and database password
+- **Prompt for your server's IP address** (required for agents)
+- Create `.env` file with proper configuration
+- Build and start Docker containers
+
 3. Access the dashboard at `http://localhost:3000`
 
 4. Register your first user (automatically becomes admin)
 
 5. Add your first machine via the "Add Machine" button
+
+**⚠️ IMPORTANT**: Before adding machines, ensure `BACKEND_HOST` is set in `.env` to your server's IP address. See [CONFIGURATION.md](CONFIGURATION.md) for details.
 
 ## Architecture
 
@@ -123,7 +131,43 @@ JWT_EXPIRES_IN=7d
 # Ports
 BACKEND_PORT=5000
 FRONTEND_PORT=3000
+
+# IMPORTANT: Agent Installation Configuration
+# Set the IP/hostname where your control server is accessible
+# This is required for agents to connect back to the control server
+BACKEND_HOST=192.168.1.100    # Your server's IP address
+# OR
+BACKEND_URL=http://192.168.1.100:5000    # Full URL with protocol and port
 ```
+
+### Important: Setting Up Agent Communication
+
+**Before adding machines**, you must configure how agents will reach the control server:
+
+1. **Find your server's IP address**:
+   ```bash
+   # Linux/Mac
+   ip addr show | grep inet
+   # Or
+   hostname -I
+   ```
+
+2. **Set in `.env` file**:
+   ```bash
+   # Option 1: Set host only (simpler)
+   BACKEND_HOST=192.168.1.100
+   
+   # Option 2: Set full URL (more control)
+   BACKEND_URL=http://192.168.1.100:5000
+   ```
+
+3. **Restart services**:
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
+
+**Note**: If you don't set `BACKEND_HOST` or `BACKEND_URL`, agents will try to connect to `localhost` and fail!
 
 ## API Documentation
 
@@ -168,6 +212,13 @@ FRONTEND_PORT=3000
 gunzip < backups/atlasnode_backup_TIMESTAMP.sql.gz | \
   docker-compose exec -T database psql -U atlasnode atlasnode
 ```
+
+## Documentation
+
+- **[CONFIGURATION.md](CONFIGURATION.md)** - Complete configuration guide (agent communication, environment variables)
+- **[API.md](API.md)** - API documentation
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
+- **[agent/README-INSTALLATION.md](agent/README-INSTALLATION.md)** - Manual agent installation guide
 
 ## Updating
 

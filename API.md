@@ -1,10 +1,10 @@
-# AtlasNode - Documentação da API
+# AtlasNode - API Documentation
 
 Base URL: `http://localhost:5000/api`
 
-## Autenticação
+## Authentication
 
-A maioria dos endpoints requer autenticação via JWT token no header:
+Most endpoints require authentication via JWT token in the header:
 ```
 Authorization: Bearer <token>
 ```
@@ -586,5 +586,5 @@ curl -X POST http://localhost:5000/api/machines/1/action \
 
 ---
 
-Para mais informações sobre a arquitetura e fluxo de dados, consulte PROJECT_STRUCTURE.md
+For more information about architecture and data flow, see PROJECT_STRUCTURE.md
 
