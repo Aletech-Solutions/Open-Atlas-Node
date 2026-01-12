@@ -253,6 +253,22 @@ async function runMigrations() {
       console.log('✓ Migration 4 completed');
     }
 
+    // Migration 5: Add control_server_url to machines table
+    if (currentVersion < 5) {
+      console.log('Running migration 5: Add control_server_url to machines table');
+
+      // Add control_server_url column
+      await client.query(`
+        ALTER TABLE machines 
+        ADD COLUMN IF NOT EXISTS control_server_url VARCHAR(255)
+      `);
+
+      console.log('✓ Added control_server_url column to machines table');
+
+      await client.query('INSERT INTO schema_migrations (version) VALUES (5)');
+      console.log('✓ Migration 5 completed');
+    }
+
     await client.query('COMMIT');
     console.log('✓ All database migrations completed');
   } catch (error) {

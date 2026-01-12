@@ -125,12 +125,19 @@ router.post('/', requireRole('admin'), async (req, res) => {
       password,
       private_key,
       requires_sudo = true,
-      sudo_password
+      sudo_password,
+      control_server_url
     } = req.body;
 
     // Validation
     if (!name || !hostname || !ip_address || !ssh_username || !auth_method) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (!control_server_url || control_server_url.trim() === '') {
+      return res.status(400).json({ 
+        error: 'Control server URL is required. This is the URL where agents will connect back to the control server.' 
+      });
     }
 
     if (auth_method !== 'password' && auth_method !== 'key') {
@@ -148,10 +155,10 @@ router.post('/', requireRole('admin'), async (req, res) => {
     // Insert machine
     const machineResult = await db.query(`
       INSERT INTO machines 
-      (name, hostname, ip_address, ssh_port, ssh_username, status, added_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, name, hostname, ip_address, ssh_port, status
-    `, [name, hostname, ip_address, ssh_port, ssh_username, 'installing', req.user.id]);
+      (name, hostname, ip_address, ssh_port, ssh_username, status, added_by, control_server_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, name, hostname, ip_address, ssh_port, status, control_server_url
+    `, [name, hostname, ip_address, ssh_port, ssh_username, 'installing', req.user.id, control_server_url]);
 
     const machine = machineResult.rows[0];
 

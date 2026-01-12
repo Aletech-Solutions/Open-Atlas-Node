@@ -3,6 +3,9 @@ import { X, AlertCircle } from 'lucide-react';
 import api from '../utils/api';
 
 export default function AddMachineModal({ onClose, onSuccess }) {
+  // Auto-detect control server URL from browser location
+  const detectedControlServer = `${window.location.protocol}//${window.location.hostname}:5000`;
+  
   const [formData, setFormData] = useState({
     name: '',
     hostname: '',
@@ -13,7 +16,8 @@ export default function AddMachineModal({ onClose, onSuccess }) {
     password: '',
     private_key: '',
     requires_sudo: true,
-    sudo_password: ''
+    sudo_password: '',
+    control_server_url: detectedControlServer // Auto-filled with detected URL
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -221,6 +225,39 @@ export default function AddMachineModal({ onClose, onSuccess }) {
                 </p>
               </div>
             )}
+
+            {/* Control Server URL - CRITICAL */}
+            <div className="md:col-span-2 border-t pt-4 mt-4">
+              <label className="label text-base font-semibold">Control Server URL *</label>
+              <input
+                type="text"
+                name="control_server_url"
+                value={formData.control_server_url}
+                onChange={handleChange}
+                className="input"
+                placeholder="http://192.168.0.5:5000"
+                required
+              />
+              <div className="mt-2 text-xs text-gray-600 space-y-1">
+                <p className="font-medium">
+                  ℹ️ This is the URL where agents will connect back to this control server.
+                </p>
+                <p>
+                  <strong>Auto-detected:</strong> {detectedControlServer}
+                </p>
+                <p className="text-yellow-700">
+                  ⚠️ If agents are on a different network, change this to your server's IP address that's accessible from the agent machines.
+                </p>
+                <p className="mt-2">
+                  Examples:
+                </p>
+                <ul className="list-disc list-inside ml-2">
+                  <li><code>http://192.168.0.5:5000</code> - Local network</li>
+                  <li><code>http://YOUR_PUBLIC_IP:5000</code> - Internet/VPN</li>
+                  <li><code>https://atlas.example.com</code> - Domain name</li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           {/* Info */}
