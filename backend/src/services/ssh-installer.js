@@ -357,20 +357,84 @@ async function installAgent(machineId) {
     };
 
     // Determine control server URL
-    // Priority: BACKEND_URL env var, then construct from HOST and PORT, fallback to localhost
+    // Priority: BACKEND_URL env var > BACKEND_HOST > auto-detect server IP > localhost
     let controlServerUrl = process.env.BACKEND_URL;
     
     if (!controlServerUrl) {
-      const backendHost = process.env.BACKEND_HOST || process.env.HOST || 'localhost';
+      let backendHost = process.env.BACKEND_HOST || process.env.HOST;
+      
+      // If no host configured, try to auto-detect the server's IP from the SSH connection
+      // The machine.ip_address is the agent's IP, so we need to find OUR IP on the same network
+      if (!backendHost || backendHost === 'localhost') {
+        const os = require('os');
+        const networkInterfaces = os.networkInterfaces();
+        
+        // Try to find an IP address on the same subnet as the target machine
+        const targetIP = machine.ip_address;
+        const targetSubnet = targetIP.split('.').slice(0, 3).join('.'); // e.g., "192.168.0"
+        
+        // Look for a network interface on the same subnet
+        let detectedIP = null;
+        for (const [name, interfaces] of Object.entries(networkInterfaces)) {
+          for (const iface of interfaces) {
+            // Skip internal/loopback and non-IPv4 addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+              const ifaceSubnet = iface.address.split('.').slice(0, 3).join('.');
+              
+              // Prefer IP on same subnet as target
+              if (ifaceSubnet === targetSubnet) {
+                detectedIP = iface.address;
+                await logInstallationStep(
+                  machineId, 
+                  'CONFIG', 
+                  `Auto-detected control server IP: ${detectedIP} (same subnet as agent)`, 
+                  null, 
+                  true
+                );
+                break;
+              }
+              
+              // Fallback to first non-loopback IPv4 address
+              if (!detectedIP && iface.address !== '127.0.0.1') {
+                detectedIP = iface.address;
+              }
+            }
+          }
+          if (detectedIP && detectedIP.split('.').slice(0, 3).join('.') === targetSubnet) {
+            break; // Found same subnet, stop searching
+          }
+        }
+        
+        if (detectedIP) {
+          backendHost = detectedIP;
+          await logInstallationStep(
+            machineId, 
+            'CONFIG', 
+            `Using auto-detected IP: ${backendHost}`, 
+            null, 
+            true
+          );
+        } else {
+          backendHost = 'localhost';
+          await logInstallationStep(
+            machineId, 
+            'CONFIG', 
+            '⚠️ WARNING: Could not auto-detect server IP! Using localhost (this will likely fail!)', 
+            'Please set BACKEND_HOST in .env file to your server IP address', 
+            false
+          );
+        }
+      }
+      
       const backendPort = process.env.PORT || 5000;
       controlServerUrl = `http://${backendHost}:${backendPort}`;
     }
     
-    // Log the control server URL being used
+    // Final log of the control server URL
     await logInstallationStep(
       machineId, 
       'CONFIG', 
-      `Using control server URL: ${controlServerUrl}`, 
+      `✓ Final control server URL: ${controlServerUrl}`, 
       null, 
       true
     );
