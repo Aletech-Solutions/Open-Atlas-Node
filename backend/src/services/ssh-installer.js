@@ -323,21 +323,27 @@ if (-not (Test-Path $agentDir)) {
     New-Item -ItemType Directory -Path $agentDir -Force | Out-Null
 }
 
+# UTF-8 without BOM (PowerShell 5 -Encoding UTF8 adds BOM which breaks JSON.parse)
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
 # Write agent files
 Write-Host "Creating package.json..."
-@'
+$pkgContent = @'
 __PACKAGE_JSON__
-'@ | Set-Content -Path "$agentDir\\package.json" -Encoding UTF8
+'@
+[System.IO.File]::WriteAllText("$agentDir\\package.json", $pkgContent, $utf8NoBom)
 
 Write-Host "Creating agent.js..."
-@'
+$agentContent = @'
 __AGENT_JS__
-'@ | Set-Content -Path "$agentDir\\agent.js" -Encoding UTF8
+'@
+[System.IO.File]::WriteAllText("$agentDir\\agent.js", $agentContent, $utf8NoBom)
 
 Write-Host "Creating config.json..."
-@'
+$configContent = @'
 __CONFIG_JSON__
-'@ | Set-Content -Path "$agentDir\\config.json" -Encoding UTF8
+'@
+[System.IO.File]::WriteAllText("$agentDir\\config.json", $configContent, $utf8NoBom)
 
 # Install dependencies
 Write-Host "Installing npm dependencies..."
@@ -741,7 +747,7 @@ async function installAgentWindows(conn, machineId, machine, credentials, agentP
 async function uploadFileWindows(conn, remotePath, content) {
   // Pipe content via SSH stdin to avoid command-line length limits.
   // PowerShell reads from stdin and writes to the target file.
-  const psCommand = `powershell -Command "$text = [Console]::In.ReadToEnd(); [System.IO.File]::WriteAllText('${remotePath}', $text, [System.Text.Encoding]::UTF8)"`;
+  const psCommand = `powershell -Command "$utf8 = New-Object System.Text.UTF8Encoding($false); $text = [Console]::In.ReadToEnd(); [System.IO.File]::WriteAllText('${remotePath}', $text, $utf8)"`;
   await executeSSHCommand(conn, psCommand, content);
 }
 
