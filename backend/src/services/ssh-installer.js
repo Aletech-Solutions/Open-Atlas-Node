@@ -714,35 +714,10 @@ async function installAgentWindows(conn, machineId, machine, credentials, agentP
 }
 
 async function uploadFileWindows(conn, remotePath, content) {
-  // Split content into chunks to avoid command-line length limits.
-  // PowerShell's max command-line via SSH can be limited, so we stream
-  // via stdin to a helper command that writes to file.
-  const b64Content = Buffer.from(content, 'utf-8').toString('base64');
-  const psCommand = `powershell -Command "$bytes = [Convert]::FromBase64String('${b64Content}'); [System.IO.File]::WriteAllText('${remotePath}', [System.Text.Encoding]::UTF8.GetString($bytes))"`;
-
-  // If the base64 is too large for a single command, fall back to stdin pipe
-  if (psCommand.length > 8000) {
-    const chunkSize = 60000;
-    const chunks = [];
-    for (let i = 0; i < b64Content.length; i += chunkSize) {
-      chunks.push(b64Content.substring(i, i + chunkSize));
-    }
-
-    // Write first chunk (create file)
-    await executeSSHCommand(
-      conn,
-      `powershell -Command "[System.IO.File]::WriteAllText('${remotePath}', '')"`,
-    );
-
-    for (const chunk of chunks) {
-      await executeSSHCommand(
-        conn,
-        `powershell -Command "$bytes = [Convert]::FromBase64String('${chunk}'); [System.IO.File]::AppendAllText('${remotePath}', [System.Text.Encoding]::UTF8.GetString($bytes))"`
-      );
-    }
-  } else {
-    await executeSSHCommand(conn, psCommand);
-  }
+  // Pipe content via SSH stdin to avoid command-line length limits.
+  // PowerShell reads from stdin and writes to the target file.
+  const psCommand = `powershell -Command "$text = [Console]::In.ReadToEnd(); [System.IO.File]::WriteAllText('${remotePath}', $text, [System.Text.Encoding]::UTF8)"`;
+  await executeSSHCommand(conn, psCommand, content);
 }
 
 async function finalizeInstallation(conn, machineId, agentPort, agentToken, platform) {
