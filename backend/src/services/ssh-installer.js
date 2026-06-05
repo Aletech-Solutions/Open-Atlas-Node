@@ -376,9 +376,14 @@ $taskName = "AtlasNodeAgent"
 # Remove existing scheduled task if present
 try { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue } catch {}
 
-# Create a scheduled task that runs at startup with stdout/stderr logged to file
+# Create a startup script that logs output to file
 $logFile = "$agentDir\\agent.log"
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"cd /d $agentDir && `"$nodePath`" agent.js >> `"$logFile`" 2>&1`"" -WorkingDirectory "$agentDir"
+$lines = @("@echo off", "cd /d ""$agentDir""", """$nodePath"" agent.js >> ""$logFile"" 2>&1")
+[System.IO.File]::WriteAllLines("$agentDir\\start-agent.bat", $lines)
+Write-Host "[OK] Created start-agent.bat"
+
+# Create a scheduled task that runs at startup
+$action = New-ScheduledTaskAction -Execute "$agentDir\\start-agent.bat" -WorkingDirectory "$agentDir"
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
