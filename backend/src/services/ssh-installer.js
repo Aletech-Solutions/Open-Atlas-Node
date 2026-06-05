@@ -342,9 +342,12 @@ __CONFIG_JSON__
 # Install dependencies
 Write-Host "Installing npm dependencies..."
 Set-Location $agentDir
-& npm install --production 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: npm install failed"
+$ErrorActionPreference = "Continue"
+& npm install --omit=dev 2>&1 | Out-Host
+$npmExitCode = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+if ($npmExitCode -ne 0) {
+    Write-Host "ERROR: npm install failed with exit code $npmExitCode"
     exit 1
 }
 Write-Host "[OK] Dependencies installed"
