@@ -5,9 +5,8 @@ const db = require('../database');
 const fs = require('fs').promises;
 const path = require('path');
 
-// Agent installation script template
-// Note: This script will be run with sudo, so internal sudo commands are not needed
-const AGENT_INSTALL_SCRIPT = `#!/bin/bash
+// Linux agent installation script template (bash)
+const LINUX_INSTALL_SCRIPT = `#!/bin/bash
 set -e
 
 echo "=== AtlasNode Agent Installer ==="
@@ -281,6 +280,131 @@ echo "Recent logs:"
 journalctl -u atlasnode-agent -n 10 --no-pager || true
 `;
 
+// Windows agent installation script template (PowerShell)
+const WINDOWS_INSTALL_SCRIPT = `
+$ErrorActionPreference = "Stop"
+
+Write-Host "=== AtlasNode Agent Installer (Windows) ==="
+
+# Check Node.js
+$nodePath = $null
+try {
+    $nodePath = (Get-Command node -ErrorAction SilentlyContinue).Source
+    $nodeVersion = & node --version 2>$null
+    Write-Host "Node.js found: $nodeVersion at $nodePath"
+} catch {}
+
+if (-not $nodePath) {
+    Write-Host "ERROR: Node.js is not installed"
+    Write-Host "Please install Node.js from: https://nodejs.org/"
+    exit 1
+}
+
+$nodeMajor = [int]($nodeVersion -replace 'v(\\d+).*','$1')
+if ($nodeMajor -lt 14) {
+    Write-Host "ERROR: Node.js version $nodeMajor is too old (minimum 14 required)"
+    Write-Host "Please update Node.js from: https://nodejs.org/"
+    exit 1
+}
+Write-Host "[OK] Node.js version check passed"
+
+try {
+    $npmVersion = & npm --version 2>$null
+    Write-Host "[OK] NPM version: $npmVersion"
+} catch {
+    Write-Host "ERROR: npm is not available"
+    exit 1
+}
+
+# Create agent directory
+$agentDir = "C:\\atlasnode-agent"
+Write-Host "Creating agent directory at $agentDir..."
+if (-not (Test-Path $agentDir)) {
+    New-Item -ItemType Directory -Path $agentDir -Force | Out-Null
+}
+
+# Write agent files
+Write-Host "Creating package.json..."
+@'
+__PACKAGE_JSON__
+'@ | Set-Content -Path "$agentDir\\package.json" -Encoding UTF8
+
+Write-Host "Creating agent.js..."
+@'
+__AGENT_JS__
+'@ | Set-Content -Path "$agentDir\\agent.js" -Encoding UTF8
+
+Write-Host "Creating config.json..."
+@'
+__CONFIG_JSON__
+'@ | Set-Content -Path "$agentDir\\config.json" -Encoding UTF8
+
+# Install dependencies
+Write-Host "Installing npm dependencies..."
+Set-Location $agentDir
+& npm install --production 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: npm install failed"
+    exit 1
+}
+Write-Host "[OK] Dependencies installed"
+
+# Stop existing service if running
+Write-Host "Stopping any existing AtlasNodeAgent service..."
+try { Stop-Service -Name "AtlasNodeAgent" -Force -ErrorAction SilentlyContinue } catch {}
+try { & sc.exe delete "AtlasNodeAgent" 2>$null } catch {}
+
+# Create startup script
+$startScript = @"
+@echo off
+cd /d "$agentDir"
+"$nodePath" agent.js
+"@
+Set-Content -Path "$agentDir\\start-agent.bat" -Value $startScript -Encoding ASCII
+
+# Register as a Windows service using sc.exe + a wrapper, or use Task Scheduler
+$taskName = "AtlasNodeAgent"
+
+# Remove existing scheduled task if present
+try { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue } catch {}
+
+# Create a scheduled task that runs at startup and restarts on failure
+$action = New-ScheduledTaskAction -Execute "$nodePath" -Argument "agent.js" -WorkingDirectory "$agentDir"
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "AtlasNode System Monitor Agent" -Force
+
+Write-Host "[OK] Scheduled task '$taskName' created"
+
+# Start the agent immediately
+Write-Host "Starting agent..."
+Start-ScheduledTask -TaskName $taskName
+
+Start-Sleep -Seconds 3
+
+# Verify
+$task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+if ($task -and $task.State -eq "Running") {
+    Write-Host "[OK] Agent is running"
+} else {
+    Write-Host "[WARNING] Agent may not have started yet. Check Task Scheduler."
+}
+
+Write-Host ""
+Write-Host "=== AtlasNode Agent installed successfully ==="
+Write-Host ""
+Write-Host "Agent directory: $agentDir"
+Write-Host "Scheduled task: $taskName"
+Write-Host ""
+Write-Host "Useful commands:"
+Write-Host "  Check status:  Get-ScheduledTask -TaskName '$taskName'"
+Write-Host "  Stop agent:    Stop-ScheduledTask -TaskName '$taskName'"
+Write-Host "  Start agent:   Start-ScheduledTask -TaskName '$taskName'"
+Write-Host "  View logs:     Get-Content '$agentDir\\agent.log' -Tail 50"
+`;
+
 async function logInstallationStep(machineId, stage, output, error, success) {
   try {
     await db.query(`
@@ -418,12 +542,6 @@ async function installAgent(machineId) {
       'utf-8'
     ).catch(() => generateAgentSource());
 
-    // Replace placeholders in install script
-    let installScript = AGENT_INSTALL_SCRIPT
-      .replace('__PACKAGE_JSON__', JSON.stringify(agentPackage, null, 2))
-      .replace('__AGENT_JS__', agentSource)
-      .replace('__CONFIG_JSON__', JSON.stringify(agentConfig, null, 2));
-
     // Connect via SSH
     await logInstallationStep(machineId, 'SSH_CONNECT', `Attempting SSH connection to ${machine.ip_address}:${machine.ssh_port}`, null, true);
     try {
@@ -434,104 +552,18 @@ async function installAgent(machineId) {
       throw sshError;
     }
 
-    // Upload and execute install script
-    await logInstallationStep(machineId, 'UPLOAD_SCRIPT', 'Uploading installation script to /tmp/atlasnode-install.sh', null, true);
-    try {
-      await executeSSHCommand(conn, 'cat > /tmp/atlasnode-install.sh', installScript);
-      await logInstallationStep(machineId, 'UPLOAD_SCRIPT', `✓ Installation script uploaded successfully (${(installScript.length / 1024).toFixed(2)} KB)`, null, true);
-    } catch (uploadError) {
-      await logInstallationStep(machineId, 'UPLOAD_SCRIPT', null, `Failed to upload script: ${uploadError.message}`, false);
-      throw uploadError;
+    // Detect remote OS
+    await logInstallationStep(machineId, 'DETECT_OS', 'Detecting remote operating system...', null, true);
+    const isWindows = await detectRemoteOS(conn);
+    const osType = isWindows ? 'Windows' : 'Linux';
+    await logInstallationStep(machineId, 'DETECT_OS', `Detected remote OS: ${osType}`, null, true);
+
+    if (isWindows) {
+      await installAgentWindows(conn, machineId, machine, credentials, agentPackage, agentSource, agentConfig, agentPort, agentToken);
+    } else {
+      await installAgentLinux(conn, machineId, machine, credentials, agentPackage, agentSource, agentConfig, agentPort, agentToken);
     }
 
-    await logInstallationStep(machineId, 'CHMOD', 'Making installation script executable (chmod +x)', null, true);
-    try {
-      await executeSSHCommand(conn, 'chmod +x /tmp/atlasnode-install.sh');
-      await logInstallationStep(machineId, 'CHMOD', '✓ Script is now executable', null, true);
-    } catch (chmodError) {
-      await logInstallationStep(machineId, 'CHMOD', null, `chmod failed: ${chmodError.message}`, false);
-      throw chmodError;
-    }
-
-    await logInstallationStep(machineId, 'EXECUTE', 'Executing installation script...', null, true);
-    let installOutput;
-    try {
-      // Execute with sudo if required
-      if (credentials.requiresSudo) {
-        if (credentials.sudoPassword) {
-          await logInstallationStep(machineId, 'EXECUTE', 'Using sudo with password for installation', null, true);
-          
-          // Create a wrapper script that handles sudo with password
-          const sudoWrapper = `#!/bin/bash
-echo '${credentials.sudoPassword.replace(/'/g, "'\\''")}' | sudo -S bash /tmp/atlasnode-install.sh 2>&1`;
-          
-          await executeSSHCommand(conn, 'cat > /tmp/atlasnode-sudo-wrapper.sh', sudoWrapper);
-          await executeSSHCommand(conn, 'chmod +x /tmp/atlasnode-sudo-wrapper.sh');
-          
-          installOutput = await executeSSHCommand(conn, 'bash /tmp/atlasnode-sudo-wrapper.sh');
-          
-          // Cleanup wrapper
-          await executeSSHCommand(conn, 'rm -f /tmp/atlasnode-sudo-wrapper.sh').catch(() => {});
-        } else {
-          await logInstallationStep(machineId, 'EXECUTE', 'Using passwordless sudo for installation', null, true);
-          installOutput = await executeSSHCommand(conn, 'sudo bash /tmp/atlasnode-install.sh 2>&1');
-        }
-      } else {
-        await logInstallationStep(machineId, 'EXECUTE', 'Running without sudo', null, true);
-        installOutput = await executeSSHCommand(conn, 'bash /tmp/atlasnode-install.sh 2>&1');
-      }
-      
-      await logInstallationStep(machineId, 'EXECUTE', installOutput, null, true);
-      console.log('Agent installation completed successfully');
-    } catch (execError) {
-      await logInstallationStep(machineId, 'EXECUTE', null, `Installation script failed: ${execError.message}`, false);
-      throw execError;
-    }
-
-    // Update machine status to online (token already saved earlier)
-    await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Updating machine status to online', null, true);
-    await db.query(`
-      UPDATE machines 
-      SET status = 'online'
-      WHERE id = $1
-    `, [machineId]);
-    await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Machine status updated to online', null, true);
-
-    // Verify agent is responding
-    await logInstallationStep(machineId, 'VERIFY_AGENT', 'Verifying agent is responding...', null, true);
-    try {
-      const verifyCommand = `curl -s http://localhost:${agentPort}/health`;
-      const healthCheck = await executeSSHCommand(conn, verifyCommand);
-      await logInstallationStep(machineId, 'VERIFY_AGENT', `Agent health check: ${healthCheck}`, null, true);
-    } catch (healthError) {
-      await logInstallationStep(machineId, 'VERIFY_AGENT', 'Health check failed (this may be normal if firewall is blocking)', healthError.message, true);
-    }
-
-    await logInstallationStep(
-      machineId, 
-      'SUCCESS', 
-      `✓ Agent installation completed successfully!\n\n` +
-      `Machine ID: ${machineId}\n` +
-      `Agent Port: ${agentPort}\n` +
-      `Agent Token: ${agentToken.substring(0, 8)}...\n\n` +
-      `The agent will now send heartbeats to the control server every 60 seconds.\n` +
-      `System information will be updated automatically.`,
-      null, 
-      true
-    );
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`✓ AGENT INSTALLATION SUCCESS`);
-    console.log(`${'='.repeat(60)}`);
-    console.log(`Machine ID: ${machineId}`);
-    console.log(`Agent Port: ${agentPort}`);
-    console.log(`Status: Online`);
-    console.log(`${'='.repeat(60)}\n`);
-
-    // Cleanup
-    await logInstallationStep(machineId, 'CLEANUP', 'Removing temporary installation script', null, true);
-    await executeSSHCommand(conn, 'rm -f /tmp/atlasnode-install.sh /tmp/atlasnode-sudo-wrapper.sh 2>&1').catch(() => {
-      console.log('Cleanup warning: Could not remove temporary files (this is not critical)');
-    });
     conn.end();
 
     return { success: true, agentToken };
@@ -556,6 +588,204 @@ echo '${credentials.sudoPassword.replace(/'/g, "'\\''")}' | sudo -S bash /tmp/at
     if (conn) conn.end();
     throw error;
   }
+}
+
+async function detectRemoteOS(conn) {
+  try {
+    // Try Windows-specific command first (fastest detection)
+    const output = await executeSSHCommand(conn, 'echo %OS%').catch(() => '');
+    if (output.trim() === 'Windows_NT') return true;
+
+    // Fallback: try PowerShell detection
+    const psOutput = await executeSSHCommand(conn, 'powershell -Command "$env:OS"').catch(() => '');
+    if (psOutput.trim() === 'Windows_NT') return true;
+
+    // Try ver command (Windows only)
+    const verOutput = await executeSSHCommand(conn, 'ver').catch(() => '');
+    if (verOutput.toLowerCase().includes('windows')) return true;
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function installAgentLinux(conn, machineId, machine, credentials, agentPackage, agentSource, agentConfig, agentPort, agentToken) {
+  let installScript = LINUX_INSTALL_SCRIPT
+    .replace('__PACKAGE_JSON__', JSON.stringify(agentPackage, null, 2))
+    .replace('__AGENT_JS__', agentSource)
+    .replace('__CONFIG_JSON__', JSON.stringify(agentConfig, null, 2));
+
+  // Upload and execute install script
+  await logInstallationStep(machineId, 'UPLOAD_SCRIPT', 'Uploading installation script to /tmp/atlasnode-install.sh', null, true);
+  try {
+    await executeSSHCommand(conn, 'cat > /tmp/atlasnode-install.sh', installScript);
+    await logInstallationStep(machineId, 'UPLOAD_SCRIPT', `✓ Installation script uploaded successfully (${(installScript.length / 1024).toFixed(2)} KB)`, null, true);
+  } catch (uploadError) {
+    await logInstallationStep(machineId, 'UPLOAD_SCRIPT', null, `Failed to upload script: ${uploadError.message}`, false);
+    throw uploadError;
+  }
+
+  await logInstallationStep(machineId, 'CHMOD', 'Making installation script executable (chmod +x)', null, true);
+  try {
+    await executeSSHCommand(conn, 'chmod +x /tmp/atlasnode-install.sh');
+    await logInstallationStep(machineId, 'CHMOD', '✓ Script is now executable', null, true);
+  } catch (chmodError) {
+    await logInstallationStep(machineId, 'CHMOD', null, `chmod failed: ${chmodError.message}`, false);
+    throw chmodError;
+  }
+
+  await logInstallationStep(machineId, 'EXECUTE', 'Executing installation script (Linux)...', null, true);
+  let installOutput;
+  try {
+    if (credentials.requiresSudo) {
+      if (credentials.sudoPassword) {
+        await logInstallationStep(machineId, 'EXECUTE', 'Using sudo with password for installation', null, true);
+        const sudoWrapper = `#!/bin/bash
+echo '${credentials.sudoPassword.replace(/'/g, "'\\''")}' | sudo -S bash /tmp/atlasnode-install.sh 2>&1`;
+        await executeSSHCommand(conn, 'cat > /tmp/atlasnode-sudo-wrapper.sh', sudoWrapper);
+        await executeSSHCommand(conn, 'chmod +x /tmp/atlasnode-sudo-wrapper.sh');
+        installOutput = await executeSSHCommand(conn, 'bash /tmp/atlasnode-sudo-wrapper.sh');
+        await executeSSHCommand(conn, 'rm -f /tmp/atlasnode-sudo-wrapper.sh').catch(() => {});
+      } else {
+        await logInstallationStep(machineId, 'EXECUTE', 'Using passwordless sudo for installation', null, true);
+        installOutput = await executeSSHCommand(conn, 'sudo bash /tmp/atlasnode-install.sh 2>&1');
+      }
+    } else {
+      await logInstallationStep(machineId, 'EXECUTE', 'Running without sudo', null, true);
+      installOutput = await executeSSHCommand(conn, 'bash /tmp/atlasnode-install.sh 2>&1');
+    }
+    await logInstallationStep(machineId, 'EXECUTE', installOutput, null, true);
+    console.log('Agent installation completed successfully (Linux)');
+  } catch (execError) {
+    await logInstallationStep(machineId, 'EXECUTE', null, `Installation script failed: ${execError.message}`, false);
+    throw execError;
+  }
+
+  await finalizeInstallation(conn, machineId, agentPort, agentToken, 'linux');
+
+  // Cleanup
+  await logInstallationStep(machineId, 'CLEANUP', 'Removing temporary installation script', null, true);
+  await executeSSHCommand(conn, 'rm -f /tmp/atlasnode-install.sh /tmp/atlasnode-sudo-wrapper.sh 2>&1').catch(() => {
+    console.log('Cleanup warning: Could not remove temporary files (this is not critical)');
+  });
+}
+
+async function installAgentWindows(conn, machineId, machine, credentials, agentPackage, agentSource, agentConfig, agentPort, agentToken) {
+  let installScript = WINDOWS_INSTALL_SCRIPT
+    .replace('__PACKAGE_JSON__', JSON.stringify(agentPackage, null, 2))
+    .replace('__AGENT_JS__', agentSource)
+    .replace('__CONFIG_JSON__', JSON.stringify(agentConfig, null, 2));
+
+  const tempScript = 'C:\\Windows\\Temp\\atlasnode-install.ps1';
+
+  // Upload PowerShell script using PowerShell's Set-Content via stdin
+  await logInstallationStep(machineId, 'UPLOAD_SCRIPT', `Uploading installation script to ${tempScript}`, null, true);
+  try {
+    await uploadFileWindows(conn, tempScript, installScript);
+    await logInstallationStep(machineId, 'UPLOAD_SCRIPT', `✓ Installation script uploaded successfully (${(installScript.length / 1024).toFixed(2)} KB)`, null, true);
+  } catch (uploadError) {
+    await logInstallationStep(machineId, 'UPLOAD_SCRIPT', null, `Failed to upload script: ${uploadError.message}`, false);
+    throw uploadError;
+  }
+
+  // Execute the PowerShell script
+  await logInstallationStep(machineId, 'EXECUTE', 'Executing installation script (Windows)...', null, true);
+  let installOutput;
+  try {
+    installOutput = await executeSSHCommand(
+      conn,
+      `powershell -ExecutionPolicy Bypass -File "${tempScript}" 2>&1`
+    );
+    await logInstallationStep(machineId, 'EXECUTE', installOutput, null, true);
+    console.log('Agent installation completed successfully (Windows)');
+  } catch (execError) {
+    await logInstallationStep(machineId, 'EXECUTE', null, `Installation script failed: ${execError.message}`, false);
+    throw execError;
+  }
+
+  await finalizeInstallation(conn, machineId, agentPort, agentToken, 'windows');
+
+  // Cleanup
+  await logInstallationStep(machineId, 'CLEANUP', 'Removing temporary installation script', null, true);
+  await executeSSHCommand(conn, `powershell -Command "Remove-Item '${tempScript}' -Force -ErrorAction SilentlyContinue"`).catch(() => {
+    console.log('Cleanup warning: Could not remove temporary files (this is not critical)');
+  });
+}
+
+async function uploadFileWindows(conn, remotePath, content) {
+  // Split content into chunks to avoid command-line length limits.
+  // PowerShell's max command-line via SSH can be limited, so we stream
+  // via stdin to a helper command that writes to file.
+  const b64Content = Buffer.from(content, 'utf-8').toString('base64');
+  const psCommand = `powershell -Command "$bytes = [Convert]::FromBase64String('${b64Content}'); [System.IO.File]::WriteAllText('${remotePath}', [System.Text.Encoding]::UTF8.GetString($bytes))"`;
+
+  // If the base64 is too large for a single command, fall back to stdin pipe
+  if (psCommand.length > 8000) {
+    const chunkSize = 60000;
+    const chunks = [];
+    for (let i = 0; i < b64Content.length; i += chunkSize) {
+      chunks.push(b64Content.substring(i, i + chunkSize));
+    }
+
+    // Write first chunk (create file)
+    await executeSSHCommand(
+      conn,
+      `powershell -Command "[System.IO.File]::WriteAllText('${remotePath}', '')"`,
+    );
+
+    for (const chunk of chunks) {
+      await executeSSHCommand(
+        conn,
+        `powershell -Command "$bytes = [Convert]::FromBase64String('${chunk}'); [System.IO.File]::AppendAllText('${remotePath}', [System.Text.Encoding]::UTF8.GetString($bytes))"`
+      );
+    }
+  } else {
+    await executeSSHCommand(conn, psCommand);
+  }
+}
+
+async function finalizeInstallation(conn, machineId, agentPort, agentToken, platform) {
+  // Update machine status to online
+  await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Updating machine status to online', null, true);
+  await db.query(`
+    UPDATE machines 
+    SET status = 'online'
+    WHERE id = $1
+  `, [machineId]);
+  await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Machine status updated to online', null, true);
+
+  // Verify agent is responding
+  await logInstallationStep(machineId, 'VERIFY_AGENT', 'Verifying agent is responding...', null, true);
+  try {
+    const verifyCommand = platform === 'windows'
+      ? `powershell -Command "(Invoke-WebRequest -Uri 'http://localhost:${agentPort}/health' -UseBasicParsing -TimeoutSec 5).Content"`
+      : `curl -s http://localhost:${agentPort}/health`;
+    const healthCheck = await executeSSHCommand(conn, verifyCommand);
+    await logInstallationStep(machineId, 'VERIFY_AGENT', `Agent health check: ${healthCheck}`, null, true);
+  } catch (healthError) {
+    await logInstallationStep(machineId, 'VERIFY_AGENT', 'Health check failed (this may be normal if firewall is blocking)', healthError.message, true);
+  }
+
+  await logInstallationStep(
+    machineId, 
+    'SUCCESS', 
+    `✓ Agent installation completed successfully (${platform})!\n\n` +
+    `Machine ID: ${machineId}\n` +
+    `Agent Port: ${agentPort}\n` +
+    `Agent Token: ${agentToken.substring(0, 8)}...\n\n` +
+    `The agent will now send heartbeats to the control server every 60 seconds.\n` +
+    `System information will be updated automatically.`,
+    null, 
+    true
+  );
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`✓ AGENT INSTALLATION SUCCESS (${platform.toUpperCase()})`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`Machine ID: ${machineId}`);
+  console.log(`Agent Port: ${agentPort}`);
+  console.log(`Status: Online`);
+  console.log(`${'='.repeat(60)}\n`);
 }
 
 function connectSSH(machine, credentials) {
