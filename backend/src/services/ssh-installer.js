@@ -733,16 +733,24 @@ async function finalizeInstallation(conn, machineId, agentPort, agentToken, plat
   `, [machineId]);
   await logInstallationStep(machineId, 'UPDATE_DATABASE', 'Machine status updated to online', null, true);
 
-  // Verify agent is responding
-  await logInstallationStep(machineId, 'VERIFY_AGENT', 'Verifying agent is responding...', null, true);
-  try {
-    const verifyCommand = platform === 'windows'
-      ? `powershell -Command "(Invoke-WebRequest -Uri 'http://localhost:${agentPort}/health' -UseBasicParsing -TimeoutSec 5).Content"`
-      : `curl -s http://localhost:${agentPort}/health`;
-    const healthCheck = await executeSSHCommand(conn, verifyCommand);
-    await logInstallationStep(machineId, 'VERIFY_AGENT', `Agent health check: ${healthCheck}`, null, true);
-  } catch (healthError) {
-    await logInstallationStep(machineId, 'VERIFY_AGENT', 'Health check failed (this may be normal if firewall is blocking)', healthError.message, true);
+  // Verify agent is responding (retry up to 3 times with delay)
+  await logInstallationStep(machineId, 'VERIFY_AGENT', 'Waiting for agent to start before health check...', null, true);
+  let healthPassed = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const waitCommand = platform === 'windows'
+        ? `powershell -Command "Start-Sleep -Seconds 5; try { (Invoke-WebRequest -Uri 'http://localhost:${agentPort}/health' -UseBasicParsing -TimeoutSec 5).Content } catch { Write-Host $_.Exception.Message; exit 1 }"`
+        : `sleep 5 && curl -s http://localhost:${agentPort}/health`;
+      const healthCheck = await executeSSHCommand(conn, waitCommand);
+      await logInstallationStep(machineId, 'VERIFY_AGENT', `Agent health check (attempt ${attempt}/3): ${healthCheck}`, null, true);
+      healthPassed = true;
+      break;
+    } catch (healthError) {
+      await logInstallationStep(machineId, 'VERIFY_AGENT', `Health check attempt ${attempt}/3 failed: ${healthError.message}`, null, attempt < 3);
+    }
+  }
+  if (!healthPassed) {
+    await logInstallationStep(machineId, 'VERIFY_AGENT', 'Agent health check failed after 3 attempts. The agent may still be starting or a firewall may be blocking port ' + agentPort + '.', null, true);
   }
 
   await logInstallationStep(
