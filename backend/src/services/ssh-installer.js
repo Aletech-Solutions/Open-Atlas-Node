@@ -352,27 +352,33 @@ if ($npmExitCode -ne 0) {
 }
 Write-Host "[OK] Dependencies installed"
 
-# Stop existing service if running
-Write-Host "Stopping any existing AtlasNodeAgent service..."
+# Open firewall port for the agent
+$agentPort = (Get-Content "$agentDir\\config.json" | ConvertFrom-Json).port
+Write-Host "Opening firewall port $agentPort..."
+try {
+    Remove-NetFirewallRule -DisplayName "AtlasNode Agent" -ErrorAction SilentlyContinue
+} catch {}
+New-NetFirewallRule -DisplayName "AtlasNode Agent" -Direction Inbound -Protocol TCP -LocalPort $agentPort -Action Allow -Profile Any | Out-Null
+Write-Host "[OK] Firewall rule created for port $agentPort"
+
+# Stop any existing agent process
+Write-Host "Stopping any existing AtlasNodeAgent..."
+try { Stop-ScheduledTask -TaskName "AtlasNodeAgent" -ErrorAction SilentlyContinue } catch {}
+try { Unregister-ScheduledTask -TaskName "AtlasNodeAgent" -Confirm:$false -ErrorAction SilentlyContinue } catch {}
 try { Stop-Service -Name "AtlasNodeAgent" -Force -ErrorAction SilentlyContinue } catch {}
 try { & sc.exe delete "AtlasNodeAgent" 2>$null } catch {}
+Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {
+    try { $_.CommandLine -like "*atlasnode*agent*" } catch { $false }
+} | Stop-Process -Force -ErrorAction SilentlyContinue
 
-# Create startup script
-$startScript = @"
-@echo off
-cd /d "$agentDir"
-"$nodePath" agent.js
-"@
-Set-Content -Path "$agentDir\\start-agent.bat" -Value $startScript -Encoding ASCII
-
-# Register as a Windows service using sc.exe + a wrapper, or use Task Scheduler
 $taskName = "AtlasNodeAgent"
 
 # Remove existing scheduled task if present
 try { Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue } catch {}
 
-# Create a scheduled task that runs at startup and restarts on failure
-$action = New-ScheduledTaskAction -Execute "$nodePath" -Argument "agent.js" -WorkingDirectory "$agentDir"
+# Create a scheduled task that runs at startup with stdout/stderr logged to file
+$logFile = "$agentDir\\agent.log"
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"cd /d $agentDir && `"$nodePath`" agent.js >> `"$logFile`" 2>&1`"" -WorkingDirectory "$agentDir"
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
@@ -385,14 +391,23 @@ Write-Host "[OK] Scheduled task '$taskName' created"
 Write-Host "Starting agent..."
 Start-ScheduledTask -TaskName $taskName
 
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
 
-# Verify
+# Verify scheduled task state
 $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-if ($task -and $task.State -eq "Running") {
-    Write-Host "[OK] Agent is running"
+if ($task) {
+    Write-Host "Scheduled task state: $($task.State)"
+    if ($task.State -eq "Running") {
+        Write-Host "[OK] Agent is running"
+    } else {
+        Write-Host "[WARNING] Task state is '$($task.State)'"
+        if (Test-Path $logFile) {
+            Write-Host "Agent log output:"
+            Get-Content $logFile -Tail 20
+        }
+    }
 } else {
-    Write-Host "[WARNING] Agent may not have started yet. Check Task Scheduler."
+    Write-Host "[ERROR] Scheduled task not found"
 }
 
 Write-Host ""
@@ -400,12 +415,14 @@ Write-Host "=== AtlasNode Agent installed successfully ==="
 Write-Host ""
 Write-Host "Agent directory: $agentDir"
 Write-Host "Scheduled task: $taskName"
+Write-Host "Firewall rule: port $agentPort (TCP inbound)"
+Write-Host "Log file: $logFile"
 Write-Host ""
 Write-Host "Useful commands:"
 Write-Host "  Check status:  Get-ScheduledTask -TaskName '$taskName'"
 Write-Host "  Stop agent:    Stop-ScheduledTask -TaskName '$taskName'"
 Write-Host "  Start agent:   Start-ScheduledTask -TaskName '$taskName'"
-Write-Host "  View logs:     Get-Content '$agentDir\\agent.log' -Tail 50"
+Write-Host "  View logs:     Get-Content '$logFile' -Tail 50"
 `;
 
 async function logInstallationStep(machineId, stage, output, error, success) {
